@@ -15,15 +15,15 @@ export const uploadToIPFS = async (data) => {
   if (IS_DEVELOPMENT && !PINATA_API_KEY) {
     console.warn('PINATA_API_KEY not configured. Using mock IPFS hash in development mode.');
     const mockHash = 'QmXzD3tfePtqsj6rHXz3jYYSNTp1duKHXjqGuA7XzR9u9N';
-    return { 
+    return {
       ipfsHash: mockHash,
       ipfsUrl: `${IPFS_GATEWAY}${mockHash}`
     };
   }
-  
+
   try {
     const jsonData = JSON.stringify(data);
-    
+
     const response = await axios.post(
       'https://api.pinata.cloud/pinning/pinJSONToIPFS',
       jsonData,
@@ -35,17 +35,17 @@ export const uploadToIPFS = async (data) => {
         }
       }
     );
-    
+
     const ipfsHash = response.data.IpfsHash;
     const ipfsUrl = `${IPFS_GATEWAY}${ipfsHash}`;
-    
+
     return { ipfsHash, ipfsUrl };
   } catch (error) {
     console.error('Error uploading to IPFS:', error);
     if (IS_DEVELOPMENT) {
       // Return mock data for development
       const mockHash = 'QmXzD3tfePtqsj6rHXz3jYYSNTp1duKHXjqGuA7XzR9u9N';
-      return { 
+      return {
         ipfsHash: mockHash,
         ipfsUrl: `${IPFS_GATEWAY}${mockHash}`
       };
@@ -63,16 +63,16 @@ export const uploadFileToIPFS = async (file) => {
   if (IS_DEVELOPMENT && !PINATA_API_KEY) {
     console.warn('PINATA_API_KEY not configured. Using mock IPFS hash in development mode.');
     const mockHash = 'QmddF3mqPVctH5TC4cLxkKq86ZfDBGc1NnpT9yzXCvmMbk';
-    return { 
+    return {
       ipfsHash: mockHash,
       ipfsUrl: `${IPFS_GATEWAY}${mockHash}`
     };
   }
-  
+
   try {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const metadata = JSON.stringify({
       name: file.name,
       keyvalues: {
@@ -82,13 +82,13 @@ export const uploadFileToIPFS = async (file) => {
       }
     });
     formData.append('pinataMetadata', metadata);
-    
+
     // Optional: set pinning options
     const pinataOptions = JSON.stringify({
       cidVersion: 0,
     });
     formData.append('pinataOptions', pinataOptions);
-    
+
     const response = await axios.post(
       'https://api.pinata.cloud/pinning/pinFileToIPFS',
       formData,
@@ -101,17 +101,17 @@ export const uploadFileToIPFS = async (file) => {
         }
       }
     );
-    
+
     const ipfsHash = response.data.IpfsHash;
     const ipfsUrl = `${IPFS_GATEWAY}${ipfsHash}`;
-    
+
     return { ipfsHash, ipfsUrl };
   } catch (error) {
     console.error('Error uploading file to IPFS:', error);
     if (IS_DEVELOPMENT) {
       // Return mock data for development
       const mockHash = 'QmddF3mqPVctH5TC4cLxkKq86ZfDBGc1NnpT9yzXCvmMbk';
-      return { 
+      return {
         ipfsHash: mockHash,
         ipfsUrl: `${IPFS_GATEWAY}${mockHash}`
       };
@@ -137,7 +137,7 @@ export const getFromIPFS = async (ipfsHash) => {
         fullName: 'John Doe',
         walletAddress: '0x0000000000000000000000000000000000000000',
         photoUrl: 'https://i.pravatar.cc/300',
-        uniqueIDHash: '0x' + Array(64).fill(0).map(() => 
+        uniqueIDHash: '0x' + Array(64).fill(0).map(() =>
           Math.floor(Math.random() * 16).toString(16)).join(''),
         dateOfIssue: new Date().toISOString(),
         expirationDate: new Date(Date.now() + 31536000000).toISOString()
@@ -145,4 +145,11 @@ export const getFromIPFS = async (ipfsHash) => {
     }
     throw error;
   }
-}; 
+};
+
+/**
+ * Alias for getFromIPFS for backward compatibility
+ * @param {string} ipfsHash - The IPFS hash to fetch
+ * @returns {Promise<Object>} - The data object
+ */
+export const fetchFromIPFS = getFromIPFS;

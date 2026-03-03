@@ -14,17 +14,20 @@ export default function WalletConnectModal({
 }) {
   const [selectedWalletIndex, setSelectedWalletIndex] = useState(null);
 
-  // Reset selected wallet when modal opens or autoselect if there's only one
+  // Reset selected wallet when modal opens or autoselect if there's only one / MetaMask is first
   useEffect(() => {
     if (isOpen) {
       if (wallets.length === 1) {
         // Auto-select if there's only one wallet
         setSelectedWalletIndex(0);
+      } else if (wallets.length > 1 && wallets[0]?.name === 'MetaMask') {
+        // Pre-select MetaMask when it's sorted to the top
+        setSelectedWalletIndex(0);
       } else {
         setSelectedWalletIndex(null);
       }
     }
-  }, [isOpen, wallets.length]);
+  }, [isOpen, wallets]);
 
   // Handle wallet selection
   const handleSelectWallet = (index) => {
@@ -52,7 +55,7 @@ export default function WalletConnectModal({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
-          
+
           {/* Modal */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -66,7 +69,7 @@ export default function WalletConnectModal({
               <h3 className="text-lg font-semibold">
                 {isChangingWallet ? 'Change Wallet' : 'Connect Wallet'}
               </h3>
-              <button 
+              <button
                 onClick={onClose}
                 className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded-full p-1 transition-colors"
               >
@@ -75,7 +78,7 @@ export default function WalletConnectModal({
                 </svg>
               </button>
             </div>
-            
+
             {/* Content */}
             <div className="p-4">
               {error && (
@@ -83,33 +86,32 @@ export default function WalletConnectModal({
                   {error}
                 </div>
               )}
-              
+
               <p className="mb-4 text-[var(--muted-foreground)]">
-                {isChangingWallet 
+                {isChangingWallet
                   ? 'Select a different wallet to connect to BlockID.'
                   : 'Select a wallet to connect to BlockID. You will be asked to approve the connection in your wallet.'
                 }
               </p>
-              
+
               {/* Wallet options */}
               <div className="space-y-2 mb-4">
                 {wallets.map((wallet, index) => (
                   <button
                     key={wallet.name}
                     onClick={() => handleSelectWallet(index)}
-                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${
-                      selectedWalletIndex === index 
-                        ? 'bg-purple-500/10 border border-purple-500/50' 
+                    className={`w-full flex items-center p-3 rounded-lg transition-colors ${selectedWalletIndex === index
+                        ? 'bg-purple-500/10 border border-purple-500/50'
                         : 'bg-[var(--secondary)] hover:bg-[var(--secondary)]/80 border border-transparent'
-                    }`}
+                      }`}
                   >
-                    <img 
-                      src={wallet.icon || '/images/wallets/ethereum.svg'} 
-                      alt={wallet.name} 
-                      className="w-6 h-6 mr-3" 
+                    <img
+                      src={wallet.icon || '/images/wallets/ethereum.svg'}
+                      alt={wallet.name}
+                      className="w-6 h-6 mr-3"
                     />
                     <span className="font-medium">{wallet.name}</span>
-                    
+
                     {selectedWalletIndex === index && (
                       <svg className="ml-auto w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -118,7 +120,7 @@ export default function WalletConnectModal({
                   </button>
                 ))}
               </div>
-              
+
               {/* Connect button */}
               <button
                 onClick={handleConnect}
@@ -140,12 +142,12 @@ export default function WalletConnectModal({
                   'Connect'
                 )}
               </button>
-              
+
               {/* Help text */}
               {wallets.length === 0 && (
                 <div className="mt-4 text-center text-sm text-[var(--muted-foreground)]">
                   <p>Don't have a wallet?</p>
-                  <a 
+                  <a
                     href="https://metamask.io/download/"
                     target="_blank"
                     rel="noopener noreferrer"

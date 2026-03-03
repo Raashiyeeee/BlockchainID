@@ -43,7 +43,7 @@ export const getContractAddress = () => {
  */
 export const switchToConfiguredNetwork = async () => {
   if (typeof window === 'undefined' || !window.ethereum) return false;
-  
+
   try {
     // Try to switch to the configured network
     await window.ethereum.request({
@@ -94,7 +94,7 @@ export const getProvider = () => {
       switchToConfiguredNetwork().catch(console.error);
       return new ethers.BrowserProvider(window.ethereum);
     }
-    
+
     // Fallback to a public RPC provider
     return new ethers.JsonRpcProvider(RPC_URL);
   } catch (error) {
@@ -116,10 +116,10 @@ export const getSigner = async () => {
     if (typeof window === 'undefined' || !window.ethereum) {
       throw new Error('MetaMask not detected. Please install MetaMask.');
     }
-    
+
     // Ensure we're on the configured network
     await switchToConfiguredNetwork();
-    
+
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     return signer;
@@ -140,7 +140,7 @@ export const getSigner = async () => {
 export const getContractReadOnly = async () => {
   try {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    
+
     // Test connection but handle errors gracefully
     try {
       await provider.getBlockNumber();
@@ -148,15 +148,15 @@ export const getContractReadOnly = async () => {
       console.error("Error connecting to provider:", connectionError);
       throw new Error(`Cannot connect to RPC at ${RPC_URL}: ${connectionError.message}`);
     }
-    
+
     const address = getContractAddress();
-    
+
     if (!address || address === '0x0000000000000000000000000000000000000000') {
       throw new Error('Contract address not configured or invalid');
     }
-    
+
     console.log('Getting contract with address:', address);
-    
+
     // Verify the contract exists at the address
     try {
       const code = await provider.getCode(address);
@@ -167,11 +167,11 @@ export const getContractReadOnly = async () => {
       console.error("Error checking contract code:", codeError);
       throw new Error(`Cannot verify contract at ${address}: ${codeError.message}`);
     }
-    
+
     return new ethers.Contract(address, BlockIDContract.abi, provider);
   } catch (error) {
     console.error('Error getting contract:', error);
-    
+
     // In development mode, provide a mock contract
     if (isDevelopment) {
       console.warn("Using mock contract in development mode");
@@ -182,7 +182,7 @@ export const getContractReadOnly = async () => {
         getIdentityByHash: async () => 0
       };
     }
-    
+
     throw error;
   }
 };
@@ -197,12 +197,12 @@ export const getContractWithSigner = async () => {
     if (!address) {
       throw new Error('Contract address not initialized');
     }
-    
+
     const signer = await getSigner();
     if (!signer) {
       throw new Error('Signer not available');
     }
-    
+
     return new ethers.Contract(address, BlockIDContract.abi, signer);
   } catch (error) {
     console.error('Error getting contract with signer:', error);
@@ -218,24 +218,24 @@ export const connectWallet = async () => {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('MetaMask not detected. Please install MetaMask.');
   }
-  
+
   try {
     // Request account access
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    
+
     // Switch to the configured network
     await switchToConfiguredNetwork();
-    
+
     // Get network information to confirm we're on the configured network
     const provider = new ethers.BrowserProvider(window.ethereum);
     const network = await provider.getNetwork();
-    
+
     // Log network info
     console.log('Connected to network:', {
       chainId: network.chainId.toString(),
       name: network.name
     });
-    
+
     return accounts[0];
   } catch (error) {
     console.error('Error connecting to MetaMask:', error);
@@ -272,7 +272,7 @@ export const isAdmin = async (address) => {
     console.log('isAdmin: No address provided');
     return false;
   }
-  
+
   try {
     console.log('isAdmin: Checking admin status for address:', address);
     const contract = await getContractReadOnly();
@@ -280,22 +280,20 @@ export const isAdmin = async (address) => {
       console.log('isAdmin: No contract instance available');
       throw new Error('Contract not available for admin check');
     }
-    
+
     // Use the contract's isAdmin function
     const isAdminOnContract = await contract.isAdmin(address);
     console.log(`Admin check via contract: ${address} => ${isAdminOnContract}`);
     return isAdminOnContract;
   } catch (error) {
     console.error('Error checking admin status:', error);
-    // In development mode, fall back to environment variable check
-    if (isDevelopment) {
-      const envAdminWallet = process.env.NEXT_PUBLIC_ADMIN_WALLET;
-      console.log('isAdmin: Development mode, checking against env variable:', envAdminWallet);
-      if (envAdminWallet) {
-        const isEnvAdmin = address.toLowerCase() === envAdminWallet.toLowerCase();
-        console.log(`Admin check via env: ${address} vs ${envAdminWallet} => ${isEnvAdmin}`);
-        return isEnvAdmin;
-      }
+    // Fall back to environment variable check (works in both dev and production)
+    const envAdminWallet = process.env.NEXT_PUBLIC_ADMIN_WALLET;
+    console.log('isAdmin: Contract check failed, checking against env variable:', envAdminWallet);
+    if (envAdminWallet) {
+      const isEnvAdmin = address.toLowerCase() === envAdminWallet.toLowerCase().replace(/"/g, '');
+      console.log(`Admin check via env: ${address} vs ${envAdminWallet} => ${isEnvAdmin}`);
+      return isEnvAdmin;
     }
     return false;
   }
@@ -309,40 +307,40 @@ export const isAdmin = async (address) => {
 export const createIdentity = async (idData) => {
   try {
     console.log("Creating identity with real blockchain transaction:", idData);
-    
+
     // Get signer
     const signer = await getSigner();
     if (!signer) {
       throw new Error("Failed to get signer, wallet may not be connected");
     }
-    
+
     const signerAddress = await signer.getAddress();
     console.log("Signer address:", signerAddress);
-    
+
     // Get contract with signer
     const contractAddress = getContractAddress();
     console.log("Using contract address:", contractAddress);
-    
+
     // Verify the contract exists at the address
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const code = await provider.getCode(contractAddress);
     if (code === '0x' || code === '0x0') {
       throw new Error(`No contract found at address ${contractAddress}`);
     }
-    
+
     const contract = new ethers.Contract(
       contractAddress,
       BlockIDContract.abi,
       signer
     );
-    
+
     if (!contract) {
       throw new Error("Failed to create contract instance");
     }
-    
+
     // Generate uniqueIdentityHash if not provided
     const uniqueHash = idData.uniqueHash || `${idData.name}_${idData.email}_${Date.now()}`;
-    
+
     // Create proper bytes32 hash (exactly 32 bytes)
     // Using ethers' formatting utilities for reliable bytes32 format
     let bytes32Hash;
@@ -359,21 +357,21 @@ export const createIdentity = async (idData) => {
       console.error("Error generating bytes32 hash:", hashError);
       throw new Error(`Failed to generate valid bytes32 hash: ${hashError.message}`);
     }
-    
+
     // Store metadata in IPFS (in real implementation)
     // For now, we'll just use a placeholder hash
     const ipfsHash = "QmPlaceholderIPFSHash";
     console.log("Using IPFS hash:", ipfsHash);
-    
+
     // Set ID type
     const idType = "personal_id";
-    
+
     // Check if the user already has an ID
     console.log("Checking if user already has an ID...");
     try {
       const hasId = await contract.hasIdentity(signerAddress);
       console.log("Has identity check result:", hasId);
-      
+
       if (hasId) {
         throw new Error("This wallet already has an ID minted on the blockchain");
       }
@@ -381,13 +379,13 @@ export const createIdentity = async (idData) => {
       console.error("Error in hasIdentity check:", hasIdentityError);
       // Continue anyway, the contract will also check this
     }
-    
+
     // Check if hash is already registered
     console.log("Checking if hash is already registered...");
     try {
       const isRegistered = await contract.isHashRegistered(bytes32Hash);
       console.log("Hash registration check result:", isRegistered);
-      
+
       if (isRegistered) {
         throw new Error("This identity hash is already registered");
       }
@@ -395,10 +393,10 @@ export const createIdentity = async (idData) => {
       console.error("Error in isHashRegistered check:", hashError);
       // Continue anyway, the contract will also check this
     }
-    
+
     // Calculate expiry date (10 years)
     const expiryDuration = 10 * 365 * 24 * 60 * 60; // 10 years in seconds
-    
+
     // Call the contract method to create an identity
     // We use different methods based on whether the caller is an admin
     let isAdminUser = false;
@@ -410,24 +408,24 @@ export const createIdentity = async (idData) => {
       console.error("Error checking admin status:", adminCheckError);
       console.log("Continuing as regular user");
     }
-    
+
     console.log("User is admin:", isAdminUser);
-    
+
     let tx;
     try {
       console.log("Attempting transaction...");
-      
+
       // Check ETH balance
       const balance = await provider.getBalance(signerAddress);
       console.log("Account balance:", ethers.formatEther(balance), "ETH");
-      
+
       if (balance === 0n) {
         throw new Error("Your wallet has zero ETH balance. You need ETH to pay for transaction fees.");
       }
-      
+
       // Skip gas estimation and go straight to transaction to ensure the wallet popup appears
       console.log("Sending transaction directly to trigger wallet confirmation popup");
-      
+
       if (isAdminUser) {
         console.log("Calling createIdentity as admin with params:", {
           owner: signerAddress,
@@ -436,7 +434,7 @@ export const createIdentity = async (idData) => {
           idType,
           uniqueHash: bytes32Hash
         });
-        
+
         // Force the wallet popup by setting the gas limit manually instead of estimating
         tx = await contract.createIdentity(
           signerAddress, // owner address
@@ -454,7 +452,7 @@ export const createIdentity = async (idData) => {
           idType,
           uniqueHash: bytes32Hash
         });
-        
+
         // Force the wallet popup by setting the gas limit manually
         tx = await contract.requestIdentity(
           ipfsHash,
@@ -465,22 +463,22 @@ export const createIdentity = async (idData) => {
           }
         );
       }
-      
+
       console.log("Transaction sent:", tx.hash);
       return tx;
     } catch (contractCallError) {
       console.error("Contract call failed:", contractCallError);
-      
+
       // Try to extract a more useful error message
       const errorMessage = contractCallError.message || "Unknown error";
-      
+
       if (errorMessage.includes("insufficient funds")) {
         throw new Error("Your wallet doesn't have enough ETH to pay for gas. Please add ETH to your wallet.");
       } else if (errorMessage.includes("user rejected")) {
         throw new Error("Transaction was rejected in your wallet.");
       } else if (errorMessage.includes("execution reverted")) {
         // Try to extract revert reason
-        const revertReason = errorMessage.includes("execution reverted:") 
+        const revertReason = errorMessage.includes("execution reverted:")
           ? errorMessage.split("execution reverted:")[1].trim()
           : "Transaction would fail";
         throw new Error(`Smart contract rejected the transaction: ${revertReason}`);
@@ -537,9 +535,9 @@ export const revokeIdentity = async (idNumber) => {
  */
 export const getIdentity = async (idNumber) => {
   try {
-    const contract = getContractReadOnly();
+    const contract = await getContractReadOnly();
     const identity = await contract.getIdentity(idNumber);
-    
+
     return {
       owner: identity[0],
       ipfsHash: identity[1],
@@ -560,10 +558,43 @@ export const getIdentity = async (idNumber) => {
         expiresAt: new Date(Date.now() + 31536000000),
         isVerified: Math.random() > 0.5,
         idType: ['national_id', 'driver_license', 'passport'][Math.floor(Math.random() * 3)],
-        uniqueIdentityHash: '0x' + Array(64).fill(0).map(() => 
+        uniqueIdentityHash: '0x' + Array(64).fill(0).map(() =>
           Math.floor(Math.random() * 16).toString(16)).join('')
       };
     }
+    throw error;
+  }
+};
+
+/**
+ * Enhanced helper to get identity details including full IPFS metadata
+ * @param {number} idNumber - The ID number to query
+ * @returns {Promise<Object>} - The full identity object with IPFS data
+ */
+export const getIdentityDetails = async (idNumber) => {
+  try {
+    const identity = await getIdentity(idNumber);
+    if (!identity.ipfsHash || identity.ipfsHash === 'QmPlaceholderIPFSHash') {
+      return identity;
+    }
+
+    try {
+      const response = await fetch(`${IPFS_GATEWAY}${identity.ipfsHash}`);
+      if (response.ok) {
+        const ipfsData = await response.json();
+        return {
+          ...identity,
+          ...ipfsData,
+          ipfsUrl: `${IPFS_GATEWAY}${identity.ipfsHash}`
+        };
+      }
+    } catch (ipfsErr) {
+      console.warn(`Could not fetch IPFS metadata for ID ${idNumber}:`, ipfsErr);
+    }
+
+    return identity;
+  } catch (error) {
+    console.error(`Error in getIdentityDetails for ${idNumber}:`, error);
     throw error;
   }
 };
@@ -635,7 +666,7 @@ export const hasIdentity = async (address) => {
 export const isHashRegistered = async (uniqueHash) => {
   try {
     const contract = getContractReadOnly();
-    
+
     // Convert the hash to bytes32 if needed
     let bytes32Hash;
     if (uniqueHash.startsWith('0x') && uniqueHash.length === 66) {
@@ -645,7 +676,7 @@ export const isHashRegistered = async (uniqueHash) => {
       // Generate bytes32 hash from string
       bytes32Hash = await generateBytes32Hash(uniqueHash);
     }
-    
+
     console.log("Checking if hash is registered:", bytes32Hash);
     return await contract.isHashRegistered(bytes32Hash);
   } catch (error) {
@@ -703,12 +734,12 @@ export const getIdentityByOwner = async (owner) => {
 export const getIdentityByHash = async (uniqueHash) => {
   try {
     const contract = getContractReadOnly();
-    
+
     // Use the consistent bytes32 hash generation method
     const bytes32Hash = uniqueHash.startsWith('0x') && uniqueHash.length === 66
       ? uniqueHash
       : await generateBytes32Hash(uniqueHash);
-    
+
     return await contract.getIdentityByHash(bytes32Hash);
   } catch (error) {
     console.error('Error getting identity by hash:', error);
@@ -729,12 +760,12 @@ export const getIdentityByHash = async (uniqueHash) => {
 export const verifyIdentityHash = async (idNumber, claimedHash) => {
   try {
     const contract = getContractReadOnly();
-    
+
     // Use the consistent bytes32 hash generation method
     const bytes32Hash = claimedHash.startsWith('0x') && claimedHash.length === 66
       ? claimedHash
       : await generateBytes32Hash(claimedHash);
-    
+
     return await contract.verifyIdentityHash(idNumber, bytes32Hash);
   } catch (error) {
     console.error('Error verifying identity hash:', error);
@@ -756,20 +787,20 @@ export const verifyIdentityHash = async (idNumber, claimedHash) => {
 export const requestIdentity = async (ipfsHash, idType, uniqueIdentityHash) => {
   try {
     const contract = await getContractWithSigner();
-    
+
     // Use the consistent bytes32 hash generation method
     const bytes32Hash = uniqueIdentityHash.startsWith('0x') && uniqueIdentityHash.length === 66
       ? uniqueIdentityHash
       : await generateBytes32Hash(uniqueIdentityHash);
-    
+
     const tx = await contract.requestIdentity(ipfsHash, idType, bytes32Hash);
     const receipt = await tx.wait();
-    
+
     // Find the IDRequested event to get the request ID
     const event = receipt.logs
       .filter(log => log.fragment && log.fragment.name === 'IDRequested')
       .map(log => contract.interface.parseLog(log))[0];
-    
+
     return event.args.requestId;
   } catch (error) {
     console.error('Error requesting identity:', error);
@@ -789,11 +820,11 @@ export const getPendingRequests = async () => {
     const contract = await getContractReadOnly();
     const requests = await contract.getPendingRequests();
     console.log('Raw pending requests from contract:', requests);
-    
+
     // Filter out zero values and ensure unique values
     const filteredRequests = [...new Set(requests.filter(id => id && id.toString() !== '0'))];
     console.log('Filtered pending requests:', filteredRequests);
-    
+
     return filteredRequests;
   } catch (error) {
     console.error('Error getting pending requests:', error);
@@ -811,12 +842,12 @@ export const getRequestDetails = async (requestId) => {
   try {
     const contract = await getContractReadOnly();
     const request = await contract.getRequestDetails(requestId);
-    
+
     // Skip requests with empty/zero address
     if (!request[0] || request[0] === '0x0000000000000000000000000000000000000000') {
       throw new Error('Invalid requester address');
     }
-    
+
     return {
       requester: request[0],
       ipfsHash: request[1],
@@ -863,12 +894,12 @@ export const approveIDRequest = async (requestId, expiryDuration) => {
     const contract = await getContractWithSigner();
     const tx = await contract.approveIDRequest(requestId, expiryDuration);
     const receipt = await tx.wait();
-    
+
     // Find the IDRequestApproved event to get the ID number
     const event = receipt.logs
       .filter(log => log.fragment && log.fragment.name === 'IDRequestApproved')
       .map(log => contract.interface.parseLog(log))[0];
-    
+
     return event.args.idNumber;
   } catch (error) {
     console.error('Error approving ID request:', error);
@@ -900,40 +931,6 @@ export const rejectIDRequest = async (requestId, reason) => {
   }
 };
 
-/**
- * Create a new digital identity directly by admin or with fee payment
- * @param {Object} metadata - Identity metadata including personal info
- * @returns {Promise<Object>} - Result object with success status and transaction hash
- */
-export const createIdentityByAdmin = async (metadata) => {
-  try {
-    console.log("Creating identity with metadata:", metadata);
-    
-    // In a real implementation, this would interact with the blockchain contract
-    // For development purposes, we're simulating a successful transaction
-    
-    // Simulate blockchain delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Generate a random transaction hash
-    const txHash = "0x" + Array(64).fill(0).map(() => 
-      Math.floor(Math.random() * 16).toString(16)).join('');
-    
-    console.log("Identity created with transaction hash:", txHash);
-    
-    return {
-      success: true,
-      transactionHash: txHash,
-      idNumber: `BID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-    };
-  } catch (error) {
-    console.error('Error creating identity:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
 
 /**
  * Get admin addresses from the contract
@@ -942,39 +939,20 @@ export const createIdentityByAdmin = async (metadata) => {
 export const getAdminAddresses = async () => {
   try {
     const contract = await getContractReadOnly();
-    if (!contract) {
-      console.warn("No contract available to get admin addresses");
-      // For development, return a default admin address if no contract is available
-      return [window.ethereum?.selectedAddress || "0x0000000000000000000000000000000000000000"];
-    }
-
-    // Get admin addresses from contract
-    const adminAddresses = await contract.getAdmins();
-    console.log("Admin addresses from contract:", adminAddresses);
-
-    if (!adminAddresses || adminAddresses.length === 0) {
-      // If no admins found from contract call, check if the current user is an admin
-      const currentAddress = window.ethereum?.selectedAddress;
-      if (currentAddress) {
-        const isCurrentUserAdmin = await isAdmin(currentAddress);
-        if (isCurrentUserAdmin) {
-          console.log("Current user is admin but no addresses returned from contract, using current address");
-          return [currentAddress];
-        }
-      }
-
-      // Fallback to development mode or default admin
-      console.warn("No admin addresses found, using default or development admin");
-      const defaultAdmin = process.env.NEXT_PUBLIC_DEFAULT_ADMIN || window.ethereum?.selectedAddress;
-      return defaultAdmin ? [defaultAdmin] : [];
-    }
-
-    return adminAddresses;
+    // The contract has a single admin retrieved via getAdmin()
+    const contractAdmin = await contract.getAdmin();
+    const envAdmin = (process.env.NEXT_PUBLIC_ADMIN_WALLET || '').replace(/"/g, '');
+    const admins = new Set([contractAdmin.toLowerCase()]);
+    if (envAdmin) admins.add(envAdmin.toLowerCase());
+    return [...admins];
   } catch (error) {
-    console.error("Error getting admin addresses:", error);
-    // For development, return a default admin address if there's an error
-    const defaultAdmin = window.ethereum?.selectedAddress;
-    return defaultAdmin ? [defaultAdmin] : [];
+    console.error('Error getting admin addresses:', error);
+    const envAdmin = (process.env.NEXT_PUBLIC_ADMIN_WALLET || '').replace(/"/g, '');
+    if (envAdmin) return [envAdmin];
+    if (typeof window !== 'undefined' && window.ethereum?.selectedAddress) {
+      return [window.ethereum.selectedAddress];
+    }
+    return [];
   }
 };
 
@@ -988,16 +966,16 @@ export const getAdminAddresses = async () => {
 export const verifyDownloadedID = async (idNumber, walletAddress) => {
   try {
     console.log("Verifying downloaded ID:", { idNumber, walletAddress });
-    
+
     // First try to find in local storage (wallet-specific storage)
     const walletsData = localStorage.getItem('blockid_wallets') || '{}';
     const wallets = JSON.parse(walletsData);
-    
+
     // Check if the wallet exists and has a matching ID
     if (walletAddress && wallets[walletAddress]) {
       console.log("Found wallet in storage:", walletAddress);
       const storedID = wallets[walletAddress];
-      
+
       // If ID numbers match, this is a valid ID
       if (storedID.idNumber === idNumber) {
         console.log("ID verified from wallet storage");
@@ -1010,11 +988,11 @@ export const verifyDownloadedID = async (idNumber, walletAddress) => {
         };
       }
     }
-    
+
     // Check general ID storage as fallback
     const allIDs = localStorage.getItem('blockid_all_ids') || '{}';
     const ids = JSON.parse(allIDs);
-    
+
     // Look for matching ID number
     if (ids[idNumber]) {
       console.log("Found ID in general storage:", idNumber);
@@ -1026,11 +1004,11 @@ export const verifyDownloadedID = async (idNumber, walletAddress) => {
         message: "ID verified successfully from general storage"
       };
     }
-    
+
     // Finally, fall back to mock verification for demo purposes
     if (idNumber && idNumber.startsWith("BID-")) {
       console.log("Using mock verification for demo purposes");
-      
+
       // Create a mock identity using the provided information
       const mockIdentity = {
         idNumber: idNumber,
@@ -1038,14 +1016,14 @@ export const verifyDownloadedID = async (idNumber, walletAddress) => {
         fullName: "Verified ID Holder",
         email: "verified@example.com",
         dateOfBirth: "2000-01-01",
-        dateOfIssue: new Date(Date.now() - 30*24*60*60*1000).toISOString(),
-        expiryDate: new Date(Date.now() + 10*365*24*60*60*1000).toISOString(),
+        dateOfIssue: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
         uniqueIdentityHash: ethers.keccak256(ethers.toUtf8Bytes(`${idNumber}_${walletAddress || "mock"}`)),
         blockchainTxnHash: "0x" + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
         isMinted: true,
         isVerified: true
       };
-      
+
       return {
         success: true,
         verified: true,
@@ -1054,7 +1032,7 @@ export const verifyDownloadedID = async (idNumber, walletAddress) => {
         message: "ID verified successfully in demo mode"
       };
     }
-    
+
     // If we reach here, the ID could not be verified
     return {
       success: false,
@@ -1070,4 +1048,21 @@ export const verifyDownloadedID = async (idNumber, walletAddress) => {
       error: error
     };
   }
-}; 
+};
+
+/**
+ * Create identity directly as admin (alias for createIdentity which handles admin logic internally)
+ * @param {Object} idData - Identity data
+ * @param {string} ownerAddress - Address of the identity owner
+ * @returns {Promise<Object>} - Transaction result
+ */
+export const createIdentityByAdmin = async (idData, ownerAddress) => {
+  return createIdentity({ ...idData, owner: ownerAddress || idData.owner });
+};
+
+/**
+ * Get identity by ID number (alias for getIdentity)
+ * @param {number} idNumber - The ID number to query
+ * @returns {Promise<Object>} - The identity information
+ */
+export const getIdentityById = getIdentity;

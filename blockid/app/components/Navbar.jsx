@@ -67,7 +67,7 @@ export default function Navbar() {
       const timer = setTimeout(() => {
         setShowReconnectTip(true);
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     } else {
       setShowReconnectTip(false);
@@ -90,7 +90,7 @@ export default function Navbar() {
         setIsAdminUser(false);
       }
     };
-    
+
     checkAdminStatus();
   }, [address]);
 
@@ -133,7 +133,7 @@ export default function Navbar() {
   const handleFeaturesClick = (e) => {
     e.preventDefault();
     smoothScrollTo('features', 30); // Use 30px extra padding for better visual effect
-    
+
     // Close mobile menu if open
     if (isMobileMenuOpen) {
       setIsMobileMenuOpen(false);
@@ -144,7 +144,7 @@ export default function Navbar() {
   const handleChangeWallet = async () => {
     // First disconnect current wallet
     await disconnect();
-    
+
     // Small delay to ensure disconnection is processed
     setTimeout(() => {
       // For MetaMask, try to directly access wallet permission UI
@@ -178,14 +178,14 @@ export default function Navbar() {
       handleChangeWallet();
       return;
     }
-    
+
     try {
       // This will show the MetaMask account selector immediately
       await window.ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }],
       });
-      
+
       // The accountsChanged event will handle updating the UI
     } catch (err) {
       console.error("Error switching accounts:", err);
@@ -204,28 +204,6 @@ export default function Navbar() {
 
   const handleNavigation = (e, path) => {
     e.preventDefault();
-    console.log("NAVIGATION DEBUG: Clicked navigation to", path);
-
-    // If transitioning to dashboard, check for authentication first
-    if (path === '/dashboard') {
-      console.log("NAVIGATION DEBUG: Attempting to navigate to dashboard", {
-        isAuthenticated,
-        address,
-        hasSession: localStorage.getItem('blockid_wallet_session') !== null,
-        sessionStorage: sessionStorage.getItem('blockid_full_auth')
-      });
-      
-      if (!isAuthenticated && !address) {
-        console.log("NAVIGATION DEBUG: Not authenticated for dashboard, redirecting to login");
-        setShowAuthAlert(true);
-        setTimeout(() => setShowAuthAlert(false), 3000);
-        router.push('/login');
-        return;
-      }
-    }
-    
-    // Proceed with navigation
-    console.log("NAVIGATION DEBUG: Navigating to", path);
     router.push(path);
   };
 
@@ -240,11 +218,11 @@ export default function Navbar() {
             </div>
             <span className="text-lg font-bold">BlockID</span>
           </Link>
-          
+
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <a 
-              href="#features" 
+            <a
+              href="#features"
               className="text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-colors"
               onClick={handleFeaturesClick}
             >
@@ -253,18 +231,18 @@ export default function Navbar() {
             <Link href="/coinbase" className="text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-colors">
               Coinbase
             </Link>
-            
+
             {/* Sepolia Testnet Indicator */}
             <div className="bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs px-2.5 py-1 rounded-full flex items-center">
               <span className="w-2 h-2 bg-amber-500 rounded-full mr-1.5 animate-pulse"></span>
               Sepolia Testnet
             </div>
-            
+
             {/* Desktop Profile/Connect */}
             <div className="hidden md:block relative">
               {address ? (
                 <div className="relative" ref={dropdownRef}>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.preventDefault();
                       console.log("NAVIGATION DEBUG: Clicked profile dropdown");
@@ -282,21 +260,21 @@ export default function Navbar() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  
+
                   {/* Dropdown menu */}
                   {isProfileDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-[var(--background)] rounded-md shadow-lg overflow-hidden z-10 border border-[var(--border)]">
                       <div className="py-1">
-                        <Link 
-                          href="/dashboard" 
+                        <Link
+                          href="/dashboard"
                           className="block px-4 py-2 text-sm hover:bg-[var(--accent)]/10 hover:text-purple-500 transition-colors"
                           onClick={(e) => handleNavigation(e, '/dashboard')}
                         >
                           Dashboard
                         </Link>
                         {isAdminUser && (
-                          <Link 
-                            href="/admin" 
+                          <Link
+                            href="/admin"
                             className="block px-4 py-2 text-sm hover:bg-[var(--accent)]/10 hover:text-purple-500 transition-colors"
                             onClick={(e) => handleNavigation(e, '/admin')}
                           >
@@ -308,7 +286,7 @@ export default function Navbar() {
                             </span>
                           </Link>
                         )}
-                        <button 
+                        <button
                           onClick={(e) => {
                             handleChangeWallet();
                             setIsProfileDropdownOpen(false);
@@ -322,7 +300,7 @@ export default function Navbar() {
                             Change Wallet
                           </span>
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             handleDirectAccountSwitch();
                             setIsProfileDropdownOpen(false);
@@ -336,7 +314,7 @@ export default function Navbar() {
                             Switch Account
                           </span>
                         </button>
-                        <button 
+                        <button
                           onClick={handleDisconnectWallet}
                           className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:text-red-400 hover:bg-[var(--accent)]/10 transition-colors"
                         >
@@ -348,7 +326,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <>
-                  <button 
+                  <button
                     onClick={handleConnectWallet}
                     disabled={isConnecting || isSigning}
                     className={`bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md 
@@ -372,7 +350,7 @@ export default function Navbar() {
                       </>
                     )}
                   </button>
-                  
+
                   {/* Reconnect Tip */}
                   {showReconnectTip && (
                     <div className="absolute top-full right-0 mt-2 w-64 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded p-3 text-xs text-amber-800 dark:text-amber-200 shadow-lg">
@@ -388,9 +366,9 @@ export default function Navbar() {
               )}
             </div>
           </div>
-          
+
           {/* Mobile menu button */}
-          <button 
+          <button
             className="md:hidden flex items-center"
             onClick={toggleMenu}
           >
@@ -399,26 +377,26 @@ export default function Navbar() {
             </svg>
           </button>
         </div>
-        
+
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-full left-0 right-0 bg-[var(--background)]/95 backdrop-blur-lg shadow-lg py-4">
             <div className="container mx-auto px-4 flex flex-col space-y-4">
-              <a 
+              <a
                 href="#features"
                 className="text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-colors py-2"
                 onClick={handleFeaturesClick}
               >
                 Features
               </a>
-              <Link 
+              <Link
                 href="/coinbase"
                 className="text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-colors py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Coinbase
               </Link>
-              
+
               {/* Mobile Sepolia Indicator */}
               <div className="bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs px-2.5 py-1 rounded-full flex items-center self-start">
                 <span className="w-2 h-2 bg-amber-500 rounded-full mr-1.5 animate-pulse"></span>
@@ -436,16 +414,16 @@ export default function Navbar() {
                       {truncateAddress(address)}
                     </span>
                   </div>
-                  <Link 
-                    href="/dashboard" 
+                  <Link
+                    href="/dashboard"
                     className="block w-full text-left py-2 text-sm hover:text-purple-500 transition-colors"
                     onClick={(e) => handleNavigation(e, '/dashboard')}
                   >
                     Dashboard
                   </Link>
                   {isAdminUser && (
-                    <Link 
-                      href="/admin" 
+                    <Link
+                      href="/admin"
                       className="block w-full text-left py-2 text-sm hover:text-purple-500 transition-colors"
                       onClick={(e) => handleNavigation(e, '/admin')}
                     >
@@ -457,7 +435,7 @@ export default function Navbar() {
                       </span>
                     </Link>
                   )}
-                  <button 
+                  <button
                     onClick={(e) => {
                       handleChangeWallet();
                       setIsMobileMenuOpen(false);
@@ -471,7 +449,7 @@ export default function Navbar() {
                       Change Wallet
                     </span>
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => {
                       handleDirectAccountSwitch();
                       setIsMobileMenuOpen(false);
@@ -485,7 +463,7 @@ export default function Navbar() {
                       Switch Account
                     </span>
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       handleDisconnectWallet();
                       setIsMobileMenuOpen(false);
@@ -496,11 +474,11 @@ export default function Navbar() {
                   </button>
                 </div>
               )}
-              
+
               {/* Auth buttons for mobile (when not connected) */}
               {!address && (
                 <div className="pt-2 border-t border-[var(--border)]">
-                  <button 
+                  <button
                     onClick={(e) => {
                       setIsMobileMenuOpen(false);
                       handleConnectWallet();
@@ -527,7 +505,7 @@ export default function Navbar() {
                       </>
                     )}
                   </button>
-                  
+
                   {/* Reconnect explanation for mobile */}
                   {showReconnectTip && (
                     <div className="mt-2 p-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded">
@@ -545,9 +523,9 @@ export default function Navbar() {
           </div>
         )}
       </nav>
-      
+
       {/* Wallet Connect Modal */}
-      <WalletConnectModal 
+      <WalletConnectModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
         wallets={availableWallets}

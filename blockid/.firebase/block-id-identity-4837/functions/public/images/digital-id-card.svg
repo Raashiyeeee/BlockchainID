@@ -1,0 +1,94 @@
+<svg width="500" height="300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a1a" />
+      <stop offset="100%" stop-color="#2d2d2d" />
+    </linearGradient>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Card background -->
+  <rect width="500" height="300" rx="15" ry="15" fill="url(#cardGradient)" stroke="#3d3d3d" stroke-width="1" />
+  
+  <!-- Purple border at top -->
+  <rect width="500" height="12" fill="url(#purpleGradient)" />
+  
+  <!-- BlockID logo and title -->
+  <circle cx="50" cy="50" r="25" fill="url(#purpleGradient)" filter="url(#glow)" />
+  <text x="50" y="58" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white" text-anchor="middle">ID</text>
+  <text x="95" y="55" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">BlockID</text>
+  
+  <!-- Secure Digital Identity text -->
+  <text x="90" y="85" font-family="Arial, sans-serif" font-size="14" fill="#a3a3a3">Secure Digital Identity</text>
+  
+  <!-- Photo placeholder for passport size photo -->
+  <rect x="50" y="100" width="100" height="120" rx="5" ry="5" fill="#333" />
+  <circle cx="100" cy="140" r="30" fill="#444" />
+  <path d="M80,180 Q100,160 120,180" stroke="#444" stroke-width="5" fill="none" />
+  
+  <!-- Full name -->
+  <text x="180" y="125" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Full Name:</text>
+  <text x="280" y="125" font-family="Arial, sans-serif" font-size="14" fill="#a3a3a3">Alex Johnson</text>
+  
+  <!-- Wallet address as unique ID -->
+  <text x="180" y="155" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">ID Number:</text>
+  <text x="280" y="155" font-family="Arial, sans-serif" font-size="10" fill="#a3a3a3">0x71C7656EC7ab88b098defB751B7401B5f6d8976F</text>
+  
+  <!-- Issue date -->
+  <text x="180" y="185" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Issued:</text>
+  <text x="280" y="185" font-family="Arial, sans-serif" font-size="14" fill="#a3a3a3">March 18, 2025</text>
+  
+  <!-- Issuer name -->
+  <text x="180" y="215" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Issuer:</text>
+  <text x="280" y="215" font-family="Arial, sans-serif" font-size="14" fill="#a3a3a3">Sepolia Network Authority</text>
+  
+  <!-- QR code for verification -->
+  <rect x="380" y="170" width="80" height="80" fill="#2d2d2d" />
+  <rect x="390" y="180" width="60" height="60" fill="none" stroke="#8b5cf6" stroke-width="1" />
+  <g transform="translate(390, 180)">
+    <!-- QR code grid pattern - more complex for verification -->
+    <rect x="5" y="5" width="10" height="10" fill="#8b5cf6" />
+    <rect x="15" y="5" width="10" height="10" fill="#8b5cf6" />
+    <rect x="25" y="5" width="10" height="10" fill="#8b5cf6" />
+    <rect x="5" y="15" width="10" height="10" fill="#8b5cf6" />
+    <rect x="25" y="15" width="10" height="10" fill="#8b5cf6" />
+    <rect x="45" y="15" width="10" height="10" fill="#8b5cf6" />
+    <rect x="5" y="25" width="10" height="10" fill="#8b5cf6" />
+    <rect x="15" y="25" width="10" height="10" fill="#8b5cf6" />
+    <rect x="35" y="25" width="10" height="10" fill="#8b5cf6" />
+    <rect x="5" y="35" width="10" height="10" fill="#8b5cf6" />
+    <rect x="25" y="35" width="10" height="10" fill="#8b5cf6" />
+    <rect x="35" y="35" width="10" height="10" fill="#8b5cf6" />
+    <rect x="45" y="35" width="10" height="10" fill="#8b5cf6" />
+    <rect x="15" y="45" width="10" height="10" fill="#8b5cf6" />
+    <rect x="35" y="45" width="10" height="10" fill="#8b5cf6" />
+  </g>
+  
+  <!-- "Scan to verify" text -->
+  <text x="420" y="260" font-family="Arial, sans-serif" font-size="10" fill="#a3a3a3" text-anchor="middle">Scan to verify</text>
+  
+  <!-- Holographic effect -->
+  <circle cx="350" cy="70" r="25" fill="url(#purpleGradient)" opacity="0.1" />
+  <circle cx="350" cy="70" r="20" fill="url(#purpleGradient)" opacity="0.15" />
+  <circle cx="350" cy="70" r="15" fill="url(#purpleGradient)" opacity="0.2" />
+  
+  <!-- Blockchain symbol -->
+  <g transform="translate(400, 70) scale(0.6)">
+    <circle cx="0" cy="0" r="20" fill="none" stroke="#8b5cf6" stroke-width="2" />
+    <path d="M-15,-8.66 L0,-17.32 L15,-8.66 L15,8.66 L0,17.32 L-15,8.66 Z" fill="none" stroke="#8b5cf6" stroke-width="2" />
+    <line x1="0" y1="-20" x2="0" y2="20" stroke="#8b5cf6" stroke-width="2" />
+    <line x1="-17.32" y1="-10" x2="17.32" y2="-10" stroke="#8b5cf6" stroke-width="2" />
+    <line x1="-17.32" y1="10" x2="17.32" y2="10" stroke="#8b5cf6" stroke-width="2" />
+  </g>
+  
+  <!-- Verification text at bottom -->
+  <text x="250" y="280" font-family="Arial, sans-serif" font-size="12" fill="#a3a3a3" text-anchor="middle">Verified on Blockchain • Tamper-Proof • Secure</text>
+</svg> 

@@ -1,6 +1,9 @@
 "use client";
+import { ethers } from "ethers";
+import BlockIDContract from '../artifacts/contracts/BlockID.sol/BlockID.json';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from './contexts/AuthContext';
@@ -12,9 +15,7 @@ import { AnimatedSection, AnimatedButton } from './components/animations/Animate
 import WalletConnectModal from './components/WalletConnectModal';
 import { smoothScrollTo, handleHashNavigation } from './utils/scrollHelper';
 import IDCardDisplay from './components/IDCardDisplay';
-import { hasIdentity, getIdentityByOwner } from '../utils/blockchain';
-import { ethers } from 'ethers';
-import BlockIDContract from '../artifacts/contracts/BlockID.sol/BlockID.json';
+import { hasIdentity, getIdentityByOwner, getIdentityDetails } from '../utils/blockchain';
 
 // Features data
 const features = [
@@ -42,16 +43,17 @@ const features = [
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
-  const { 
-    connect, 
-    disconnect, 
+  const {
+    connect,
+    disconnect,
     isConnecting,
-    isSigning, 
+    isSigning,
     address,
     availableWallets,
-    error: walletError 
+    error: walletError
   } = useWalletAuth();
-  
+
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -64,13 +66,13 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Initialize provider if window.ethereum is available
     if (typeof window !== 'undefined' && window.ethereum) {
       const ethersProvider = new ethers.BrowserProvider(window.ethereum);
       setProvider(ethersProvider);
     }
-    
+
     // Handle hash navigation when page loads
     if (typeof window !== 'undefined') {
       // Check if there's a hash in the URL
@@ -91,7 +93,7 @@ export default function Home() {
       checkWalletForId();
     }
   }, [address]);
-  
+
   // Check if connected wallet has an ID card
   useEffect(() => {
     const checkForExistingID = async () => {
@@ -100,14 +102,14 @@ export default function Home() {
         try {
           const existingCardData = localStorage.getItem('blockid_wallets') || '{}';
           const existingCards = JSON.parse(existingCardData);
-          
+
           if (existingCards[address]) {
             console.log(`Found existing ID in wallet-specific storage for ${address}`);
             setMintedIDCard(existingCards[address]);
             setHasWalletID(true);
             return;
           }
-          
+
           // Also check if there's a general card in local storage that matches this wallet
           const savedCard = localStorage.getItem('blockid_card');
           if (savedCard) {
@@ -119,7 +121,7 @@ export default function Home() {
               return;
             }
           }
-          
+
           // If no ID found in localStorage, check blockchain
           const hasId = await hasIdentity(address);
           if (hasId) {
@@ -127,21 +129,44 @@ export default function Home() {
             const idNumber = await getIdentityByOwner(address);
             if (idNumber > 0) {
               console.log(`Found ID #${idNumber} on chain for ${address}`);
-              // Create a minimal ID object
-              const minimalID = {
-                idNumber: `BID-${idNumber}`,
+
+              // Try to fetch full card data from IPFS
+              let fullCard = null;
+              try {
+                const details = await getIdentityDetails(Number(idNumber));
+                if (details && details.ipfsHash !== 'QmPlaceholderIPFSHash') {
+                  fullCard = {
+                    ...details,
+                    idNumber: `BID-${idNumber.toString().padStart(6, '0')}`,
+                    walletAddress: address,
+                    isMinted: true
+                  };
+                  console.log('Home page: full card loaded from IPFS:', fullCard.fullName);
+                  // Cache it so next load is instant
+                  try {
+                    const walletsData = JSON.parse(localStorage.getItem('blockid_wallets') || '{}');
+                    walletsData[address] = fullCard;
+                    localStorage.setItem('blockid_wallets', JSON.stringify(walletsData));
+                  } catch (_) { }
+                }
+              } catch (ipfsErr) {
+                console.warn('Home page: could not fetch IPFS data:', ipfsErr.message);
+              }
+
+              const cardToShow = fullCard || {
+                idNumber: `BID-${idNumber.toString().padStart(6, '0')}`,
                 walletAddress: address,
                 createdAt: new Date().toISOString(),
                 role: 'Personal ID',
                 organization: 'Sepolia Network Authority',
-                isMinted: true
+                isMinted: true,
               };
-              setMintedIDCard(minimalID);
+              setMintedIDCard(cardToShow);
               setHasWalletID(true);
               return;
             }
           }
-          
+
           // No ID found
           setHasWalletID(false);
           setMintedIDCard(null);
@@ -156,30 +181,58 @@ export default function Home() {
         setMintedIDCard(null);
       }
     };
-    
+
     checkForExistingID();
   }, [address]);
-  
-  // Function to handle wallet connection
+
+  // Function to handle wallet connection / dashboard navigation
   const handleConnectWallet = async () => {
-    if (isAuthenticated || address) {
-      disconnect();
-    } else {
+    try {
+      if (isAuthenticated || address) {
+        // User is already connected — go to dashboard
+        router.push('/dashboard');
+        return;
+      }
+
+      // Clear any previous connection error
+      setConnectionError(null);
+
       // Open wallet selection modal if multiple wallets available
       if (availableWallets.length > 1) {
         setIsWalletModalOpen(true);
       } else {
-        // Connect with default wallet
+        // Connect with default wallet (single wallet or no explicit list yet)
         const result = await connect();
-        if (!result.success && result.availableWallets?.length > 0) {
+        if (result?.cancelled) {
+          // User pressed Cancel in MetaMask — do nothing, don't show an error banner
+          return;
+        }
+        if (!result?.success && result?.availableWallets?.length > 0) {
           setIsWalletModalOpen(true);
-        } else if (!result.success) {
-          setConnectionError(result.error || "Failed to connect wallet");
+        } else if (!result?.success) {
+          setConnectionError(result?.error || 'Failed to connect wallet');
+        } else if (result?.success) {
+          // Successfully connected — navigate to dashboard
+          router.push('/dashboard');
         }
       }
+    } catch (err) {
+      // Catch any unexpected synchronous throw from wallet extensions
+      const isRejection =
+        err?.code === 4001 ||
+        err?.code === 'ACTION_REJECTED' ||
+        err?.message?.toLowerCase().includes('user rejected') ||
+        err?.message?.toLowerCase().includes('user denied') ||
+        err?.message?.toLowerCase().includes('rejected connection');
+
+      if (!isRejection) {
+        console.error('handleConnectWallet unexpected error:', err);
+        setConnectionError(err?.message || 'Could not connect wallet. Please try again.');
+      }
+      // Rejections are silently ignored (user just clicked Cancel)
     }
   };
-  
+
   // Handle wallet selection from modal
   const handleWalletSelection = async (walletIndex) => {
     setConnectionError(null);
@@ -190,7 +243,7 @@ export default function Home() {
       setIsWalletModalOpen(false);
     }
   };
-  
+
   // Handle smooth scrolling to features section
   const handleScrollToFeatures = (e) => {
     e.preventDefault();
@@ -200,7 +253,7 @@ export default function Home() {
   // Check if wallet has an existing ID
   const checkWalletForId = async () => {
     if (!address) return;
-    
+
     try {
       // First check localStorage
       const storedIDs = JSON.parse(localStorage.getItem('blockid_wallets') || '{}');
@@ -209,7 +262,7 @@ export default function Home() {
         setIdData(storedIDs[address]);
         return;
       }
-      
+
       // Then check blockchain if provider is available
       if (provider) {
         const contract = new ethers.Contract(
@@ -217,7 +270,7 @@ export default function Home() {
           BlockIDContract.abi,
           provider
         );
-        
+
         const hasID = await contract.hasIdentity(address);
         if (hasID) {
           setWalletHasId(true);
@@ -231,7 +284,7 @@ export default function Home() {
                 fullName: "ID Owner",
                 idNumber: "ID on blockchain",
                 dateOfBirth: new Date().toISOString().split('T')[0],
-                expiryDate: new Date(Date.now() + 10*365*24*60*60*1000).toISOString().split('T')[0],
+                expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                 photoUrl: "/placeholder-photo.jpg",
                 walletAddress: address,
                 isMinted: true
@@ -250,12 +303,12 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--background)] relative overflow-hidden">
       <Navbar />
-      
+
       {/* Particle Nebula Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         <ParticleNebula expandTop={true} className="z-0" />
       </div>
-      
+
       {/* Hero Section */}
       <section className="relative pt-24 md:pt-32 pb-16 md:pb-24 overflow-hidden px-4">
         <div className="container mx-auto">
@@ -266,11 +319,11 @@ export default function Home() {
                 <span className="gradient-text">Identity</span>
                 <span>on the Blockchain</span>
               </AnimatedTitle>
-              
+
               <AnimatedText className="text-lg md:text-xl text-[var(--muted-foreground)] mb-8 max-w-lg">
                 Take control of your digital identity with BlockID. Secure, portable, and privacy-focused authentication for the Web3 era.
               </AnimatedText>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <AnimatedButton delay={0.1}>
                   <button
@@ -311,7 +364,7 @@ export default function Home() {
                     )}
                   </button>
                 </AnimatedButton>
-                
+
                 <AnimatedButton delay={0.2}>
                   <a href="#features" onClick={handleScrollToFeatures} className="btn-secondary px-8 py-3 text-center">
                     Learn More
@@ -319,7 +372,7 @@ export default function Home() {
                 </AnimatedButton>
               </div>
             </div>
-            
+
             <div className="w-full md:w-1/2 flex justify-center md:justify-end">
               <div className="relative w-full max-w-md">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-600 opacity-20 blur-2xl"></div>
@@ -337,7 +390,7 @@ export default function Home() {
                             <p className="text-xs text-[var(--muted-foreground)]">Blockchain Verified Digital Identity</p>
                           </div>
                         </div>
-                        
+
                         {/* Card demo content */}
                         <div className="flex items-start">
                           <div className="flex-shrink-0 h-20 w-20 rounded-lg overflow-hidden mr-3 border border-[var(--border)]">
@@ -348,7 +401,7 @@ export default function Home() {
                               </svg>
                             </div>
                           </div>
-                          
+
                           <div>
                             <h3 className="text-base font-semibold">Alex Johnson</h3>
                             <p className="text-xs text-[var(--muted-foreground)]">Personal ID</p>
@@ -364,7 +417,7 @@ export default function Home() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Card footer */}
                       <div className="h-2 bg-gradient-to-r from-purple-600 via-violet-600 to-violet-800"></div>
                     </div>
@@ -378,7 +431,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
       {/* Minted ID Card Display - only visible when wallet is connected and has a minted ID */}
       {address && hasWalletID && mintedIDCard && (
         <section className="py-12 relative z-10">
@@ -401,7 +454,7 @@ export default function Home() {
           </div>
         </section>
       )}
-      
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-[var(--background-secondary)] relative z-10">
         <div className="container mx-auto">
@@ -413,7 +466,7 @@ export default function Home() {
               Our blockchain-based identity solution provides security and convenience without compromising your privacy.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <div key={index} className="glass-card p-6 rounded-xl hover:shadow-lg transition-all duration-300">
@@ -429,7 +482,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
       {/* How it Works Section */}
       <AnimatedSection className="relative py-16 md:py-24 px-4 bg-[var(--card)]/50">
         <div className="container mx-auto">
@@ -441,20 +494,20 @@ export default function Home() {
               Experience a seamless authentication process with our blockchain-powered identity solution.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="glass-card p-6 rounded-xl relative">
               <div className="absolute -top-4 -left-4 w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-violet-600 flex items-center justify-center text-white font-bold">1</div>
               <h3 className="text-xl font-semibold mb-3 mt-2">Connect Your Wallet</h3>
               <p className="text-[var(--muted-foreground)]">Link your cryptocurrency wallet to establish your unique blockchain identity.</p>
             </div>
-            
+
             <div className="glass-card p-6 rounded-xl relative">
               <div className="absolute -top-4 -left-4 w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-violet-600 flex items-center justify-center text-white font-bold">2</div>
               <h3 className="text-xl font-semibold mb-3 mt-2">Verify Your Identity</h3>
               <p className="text-[var(--muted-foreground)]">Complete a one-time verification process to secure your digital identity.</p>
             </div>
-            
+
             <div className="glass-card p-6 rounded-xl relative">
               <div className="absolute -top-4 -left-4 w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-violet-600 flex items-center justify-center text-white font-bold">3</div>
               <h3 className="text-xl font-semibold mb-3 mt-2">Authenticate Anywhere</h3>
@@ -463,7 +516,7 @@ export default function Home() {
           </div>
         </div>
       </AnimatedSection>
-      
+
       {/* CTA Section */}
       <AnimatedSection className="relative py-16 md:py-24 px-4">
         <div className="container mx-auto">
@@ -477,7 +530,7 @@ export default function Home() {
                   Join thousands of users who have already secured their online presence with BlockID.
                 </p>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={handleConnectWallet}
@@ -516,7 +569,7 @@ export default function Home() {
                     </>
                   )}
                 </button>
-                
+
                 <a href="#features" onClick={handleScrollToFeatures} className="btn-secondary px-8 py-3 text-center whitespace-nowrap">
                   Learn More
                 </a>
@@ -525,7 +578,7 @@ export default function Home() {
           </div>
         </div>
       </AnimatedSection>
-      
+
       {/* Footer */}
       <footer className="relative py-12 px-4 border-t border-[var(--border)]">
         <div className="container mx-auto">
@@ -541,7 +594,7 @@ export default function Home() {
                 Secure, portable, and privacy-focused blockchain identity for the Web3 era.
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
               <div>
                 <h3 className="font-semibold mb-4">Product</h3>
@@ -551,7 +604,7 @@ export default function Home() {
                   <li><Link href="/docs" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">Documentation</Link></li>
                 </ul>
               </div>
-              
+
               <div>
                 <h3 className="font-semibold mb-4">Company</h3>
                 <ul className="space-y-2">
@@ -560,7 +613,7 @@ export default function Home() {
                   <li><Link href="/careers" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">Careers</Link></li>
                 </ul>
               </div>
-              
+
               <div className="col-span-2 md:col-span-1">
                 <h3 className="font-semibold mb-4">Connect</h3>
                 <ul className="space-y-2">
@@ -571,12 +624,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-          
+
           <div className="border-t border-[var(--border)] mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-[var(--muted-foreground)] mb-4 md:mb-0">
               © {new Date().getFullYear()} BlockID. All rights reserved.
             </p>
-            
+
             <div className="flex space-x-6">
               <Link href="/privacy" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
                 Privacy Policy
@@ -590,7 +643,7 @@ export default function Home() {
       </footer>
 
       {/* Wallet Connect Modal */}
-      <WalletConnectModal 
+      <WalletConnectModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
         wallets={availableWallets}
